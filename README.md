@@ -1,75 +1,70 @@
-# React + TypeScript + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# Patient Management Platform
 
-Currently, two official plugins are available:
+A modern, open-source patient management platform designed to help clinics and healthcare organizations manage patients, doctors, appointments, medical records, prescriptions, billing, reporting, and other clinical workflows.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The project is being built as a scalable full-stack healthcare management system using modern Java, Spring Boot, React, TypeScript, cloud-native technologies, and microservices architecture.
 
-## React Compiler
+##  Project Status
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+This project is actively under development.
 
-## Expanding the ESLint configuration
+The current focus is building the core frontend experience and backend microservices incrementally, with a strong emphasis on clean architecture, scalability, maintainability, security, and developer experience.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+##  Goals
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+The primary goals of this project are to:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- Build a production-oriented healthcare management platform
+- Provide a clean and intuitive user interface for clinic staff
+- Manage patients and their medical information
+- Manage doctors and healthcare providers
+- Schedule and manage appointments
+- Maintain medical records
+- Manage prescriptions
+- Support billing and payments
+- Provide reporting and analytics
+- Implement secure authentication and authorization
+- Build a scalable microservices architecture
+- Support event-driven communication using Apache Kafka
+- Provide cloud-ready deployment capabilities
+- Maintain an open-source codebase that developers can contribute to
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 🏗️ Architecture
 
-```
+The backend follows a microservices architecture.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
+```text
+                         ┌─────────────────────┐
+                         │      Frontend       │
+                         │ React + TypeScript  │
+                         │   Vite + Tailwind   │
+                         └──────────┬──────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │     API Gateway     │
+                         └──────────┬──────────┘
+                                    │
+             ┌──────────────────────┼──────────────────────┐
+             │                      │                      │
+             ▼                      ▼                      ▼
+      ┌─────────────┐       ┌─────────────┐       ┌─────────────┐
+      │   Patient   │       │   Doctor    │       │ Appointment │
+      │   Service   │       │   Service   │       │   Service   │
+      └─────────────┘       └─────────────┘       └─────────────┘
+             │                      │                      │
+             └──────────────────────┼──────────────────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │   Common Services   │
+                         │ Security / Audit /  │
+                         │ Cache / Validation  │
+                         └─────────────────────┘
+                                    │
+                                    ▼
+                         ┌─────────────────────┐
+                         │   Event Streaming   │
+                         │       Kafka         │
+                         └─────────────────────┘
