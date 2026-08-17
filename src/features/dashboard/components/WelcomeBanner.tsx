@@ -1,11 +1,11 @@
 // WelcomeBanner.tsx
-import { Calendar, ClockIcon, Download, RefreshCw } from "lucide-react";
+import { Calendar, Clock, Download, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface WelcomeBannerProps {
   userName: string;
-  onRefresh?: () => void;  // Made optional
-  isLoading?: boolean;      // Made optional
+  onRefresh?: () => void;
+  isLoading?: boolean;
 }
 
 export default function WelcomeBanner({ 
@@ -40,32 +40,21 @@ export default function WelcomeBanner({
   }, [currentTime]);
 
   const handleRefresh = async () => {
-    // If there's an external refresh handler, use it
     if (onRefresh) {
       onRefresh();
       return;
     }
 
-    // Otherwise, handle refresh locally
     setLocalLoading(true);
     setRefreshMessage("Refreshing...");
     
     try {
-      // Simulate refresh with timeout
       await new Promise(resolve => setTimeout(resolve, 1500));
       setRefreshMessage("✅ Refreshed successfully!");
-      
-      // You can add actual refresh logic here
-      // For example, re-fetch data, reload page data, etc.
-      
-      setTimeout(() => {
-        setRefreshMessage("");
-      }, 3000);
+      setTimeout(() => setRefreshMessage(""), 3000);
     } catch (error) {
       setRefreshMessage("❌ Refresh failed");
-      setTimeout(() => {
-        setRefreshMessage("");
-      }, 3000);
+      setTimeout(() => setRefreshMessage(""), 3000);
     } finally {
       setLocalLoading(false);
     }
@@ -74,7 +63,7 @@ export default function WelcomeBanner({
   const isRefreshing = isLoading || localLoading;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-linear-to-r from-sky-500 via-sky-600 to-indigo-600 p-6 md:p-8">
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 p-6 md:p-8">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white" />
@@ -91,10 +80,10 @@ export default function WelcomeBanner({
             </h1>
             <span className="text-2xl md:text-3xl">👋</span>
           </div>
-          <p className="mt-1 text-base text-sky-100 md:text-lg">
+          <p className="mt-1 text-base text-blue-100 md:text-lg">
             Welcome back, <span className="font-semibold text-white">{userName}</span>
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-sky-100">
+          <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-blue-100">
             <span className="flex items-center gap-1.5">
               <Calendar size={16} />
               {currentTime.toLocaleDateString('en-US', {
@@ -105,7 +94,7 @@ export default function WelcomeBanner({
               })}
             </span>
             <span className="flex items-center gap-1.5">
-              <ClockIcon size={16} />
+              <Clock size={16} />
               {currentTime.toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit',
@@ -113,7 +102,6 @@ export default function WelcomeBanner({
               })}
             </span>
           </div>
-          {/* Refresh status message */}
           {refreshMessage && (
             <div className="mt-2 text-sm text-white/90 animate-pulse">
               {refreshMessage}
