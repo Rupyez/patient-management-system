@@ -12,33 +12,22 @@ import {
   TrendingDown,
   Users,
   Stethoscope,
-  Calendar,
+  
   DollarSign,
   Clock,
   Star,
-  Activity,
-  PieChart,
-  LineChart,
+ 
   Download,
-  Filter,
-  RefreshCw,
-  Eye,
+
   ChevronDown,
   ChevronUp,
   AlertCircle,
-  CheckCircle,
-  XCircle,
+ 
   Clock as ClockIcon,
   UserPlus,
-  CalendarDays,
-  Wallet,
-  HeartPulse,
+
   Brain,
-  Shield,
-  Hospital,
-  Ambulance,
-  Pill,
-  Syringe,
+
 } from 'lucide-react';
 
 // ============================================================

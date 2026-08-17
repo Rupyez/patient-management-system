@@ -5,7 +5,7 @@
 // Import this in AppRoutes.tsx
 // ============================================================
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   LogOut,
@@ -26,19 +26,13 @@ import {
   Download,
   Clock as ClockIcon,
   Calendar as CalendarIcon,
-  Mic,
-  Shield,
   Lock,
   Mail,
   Phone as PhoneIcon,
   Microscope,
-  TestTube,
-  Ambulance,
-  Hospital,
   Pill as PillIcon,
   Stethoscope as StethoscopeIcon,
   Eye as EyeIcon,
-  MessageCircle,
   Video as VideoIcon,
   Loader,
   LayoutDashboard

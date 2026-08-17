@@ -160,7 +160,7 @@ const clearFilters = useCallback(() =>{
 
 const toggleFilter = useCallback(() =>{
     setShowFilters((prev) => !prev);
-})
+},[])
 
   // ==========================================================
   // RETURN

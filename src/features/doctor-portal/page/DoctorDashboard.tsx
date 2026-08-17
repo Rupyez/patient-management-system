@@ -5,10 +5,9 @@
 // Import this in AppRoutes.tsx
 // ============================================================
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   User,
-  Stethoscope,
   Calendar,
   Clock,
   Users,
@@ -32,8 +31,6 @@ import {
   Clock as ClockIcon,
   Video,
   Phone,
-  ArrowLeft,
-  ArrowRight,
   Star,
   Clipboard,
   UserPlus,
@@ -43,8 +40,6 @@ import {
   Clock as ClockTime,
   Activity as ActivityIcon,
   Download as DownloadIcon,
-  Share2,
-  MoreVertical,
   Check,
   X as XIcon,
 } from 'lucide-react';
