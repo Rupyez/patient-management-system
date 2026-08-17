@@ -1,9 +1,13 @@
+// src/components/layout/Sidebar.tsx (or wherever your sidebar is)
 import {
   LayoutDashboard,
   Users,
   CalendarDays,
   Stethoscope,
   Settings,
+  BarChart3,
+  DollarSign,
+  User, // 👈 ADD THIS IMPORT
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
@@ -12,7 +16,12 @@ const menus = [
   { title: 'Patients', path: '/patients', icon: Users },
   { title: 'Doctors', path: '/doctors', icon: Stethoscope },
   { title: 'Appointments', path: '/appointments', icon: CalendarDays },
+  { title: 'Billing', path: '/billing', icon: DollarSign },
+  { title: 'Patient Portal', path: '/portal', icon: User }, // 👈 ADD THIS
+  { title: 'Analytics', path: '/analytics', icon: BarChart3 },
   { title: 'Settings', path: '/settings', icon: Settings },
+   { title: 'Doctor Dashboard', path: '/doctor-dashboard', icon: Stethoscope },
+    { title: 'Staff Management', path: '/staff', icon: Users },
 ];
 
 export default function Sidebar() {

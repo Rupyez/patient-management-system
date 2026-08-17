@@ -1,32 +1,46 @@
 import type{ Patient } from "../types/patient";
 
 export const patients: Patient[] = [
-
-{
-id:1,
-mrn:"MRN001",
-fullName:"John Doe",
-gender:"Male",
-phone:"555-1234",
-status:"Active"
-},
-
-{
-id:2,
-mrn:"MRN002",
-fullName:"Jane Smith", 
-gender:"Female",
-phone:"555-4567",
-status:"Active"
-},
-
-{
-id:3,
-mrn:"MRN003",
-fullName:"Alex Johnson",
-gender:"Male",
-phone:"555-8910",
-status:"Inactive"
-}
-
+  {
+    id: "1",
+    medicalRecordNumber: "MRN001",
+    firstName: "John",
+    lastName: "Doe",
+    gender: "MALE",
+    dateOfBirth: "1990-01-15",
+    phoneNumber: "555-1234",
+    email: "john.doe@example.com",
+    address: "123 Main Street",
+    status: "ACTIVE",
+    createdAt: "2026-01-01T09:00:00",
+    updatedAt: "2026-01-01T09:00:00",
+  },
+  {
+    id: "2",
+    medicalRecordNumber: "MRN002",
+    firstName: "Jane",
+    lastName: "Smith",
+    gender: "FEMALE",
+    dateOfBirth: "1988-05-20",
+    phoneNumber: "555-4567",
+    email: "jane.smith@example.com",
+    address: "456 Oak Avenue",
+    status: "ACTIVE",
+    createdAt: "2026-01-02T09:00:00",
+    updatedAt: "2026-01-02T09:00:00",
+  },
+  {
+    id: "3",
+    medicalRecordNumber: "MRN003",
+    firstName: "Alex",
+    lastName: "Johnson",
+    gender: "MALE",
+    dateOfBirth: "1995-09-10",
+    phoneNumber: "555-8910",
+    email: "alex.johnson@example.com",
+    address: "789 Pine Road",
+    status: "INACTIVE",
+    createdAt: "2026-01-03T09:00:00",
+    updatedAt: "2026-01-03T09:00:00",
+  },
 ];
