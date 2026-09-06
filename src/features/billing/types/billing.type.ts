@@ -1,26 +1,32 @@
-/**
- * ============================================================
- * BILLING TYPES
- * ============================================================
- */
+// ============================================================
+// FILE: src/features/billing/types/billing.types.ts
+// PURPOSE: Centralized type definitions for the billing system
+// ============================================================
 
-export interface InvoiceItem {
+export type InvoiceStatus = 'PAID' | 'UNPAID' | 'OVERDUE' | 'CANCELLED' | 'PARTIAL';
+
+export type PaymentMethod = 'CASH' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'INSURANCE' | 'BANK_TRANSFER' | 'ONLINE';
+
+export type ReportType = 'INVOICE' | 'PAYMENT' | 'REVENUE' | 'PATIENT' | 'DOCTOR' | 'CUSTOM';
+
+export type ReportFormat = 'PDF' | 'EXCEL' | 'CSV' | 'HTML';
+
+export interface InvoiceItem{
+  id: string;
   description: string;
-  code: string;
   quantity: number;
   unitPrice: number;
-  discount: number;
   total: number;
-  category: 'CONSULTATION' | 'PROCEDURE' | 'LAB' | 'PHARMACY' | 'RADIOLOGY' | 'OTHER';
+  category: 'CONSULTATION' | 'PROCEDURE' | 'MEDICATION' | 'LAB_TEST' | 'SURGERY' | 'OTHER';
 }
 
-export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'CANCELLED';
-export type PaymentMethod = 'CASH' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER' | 'INSURANCE';
-
-export interface Invoice {
+export interface Invoice{
   id: string;
   invoiceNumber: string;
   patientId: string;
+  patientName: string;
+  doctorId: string;
+  doctorName: string;
   appointmentId?: string;
   items: InvoiceItem[];
   subtotal: number;
@@ -28,47 +34,52 @@ export interface Invoice {
   discount: number;
   total: number;
   paidAmount: number;
-  balance: number;
+  dueAmount: number;
   status: InvoiceStatus;
+  paymentMethod?: PaymentMethod;
+  paymentDate?: string;
   dueDate: string;
   issueDate: string;
-  paidAt?: string;
-  paymentMethod?: PaymentMethod;
   notes: string;
   createdAt: string;
   updatedAt: string;
+
 }
 
-export interface InsuranceClaim {
+export interface Payment{
   id: string;
-  patientId: string;
-  providerId: string;
-  providerName: string;
-  policyNumber: string;
-  groupNumber: string;
-  claimNumber: string;
-  submittedAmount: number;
-  approvedAmount: number;
-  deniedAmount: number;
-  status: 'DRAFT' | 'SUBMITTED' | 'IN_REVIEW' | 'APPROVED' | 'PARTIALLY_APPROVED' | 'DENIED' | 'PAID';
-  submissionDate: string;
-  approvalDate?: string;
-  paymentDate?: string;
-  denials: Array<{
-    code: string;
-    reason: string;
-    amount: number;
-  }>;
-  notes: string;
+  invoiceId: string;
+  amount: number;
+  method: PaymentMethod;
+  date: string;
+  reference: string;
+  status: 'COMPLETED' | 'PENDING' | 'FAILED' | 'REFUNDED';
 }
 
-export interface BillingStats {
-  totalRevenue: number;
-  pendingPayments: number;
-  overduePayments: number;
-  collected: number;
-  thisMonth: number;
-  thisWeek: number;
-  today: number;
-  averagePerPatient: number;
+
+export interface BillingStats{
+  totalRevenue:number;
+  paidInvoices:number;
+  unpaidInvoices:number;
+  overdueInvoices:number;
+  averagePaymentTime:number;
+  revenueByMonth:{month: string, revenue:number}[];
+  revenueByCategory:{category:string; amount:number; percentage:number}[];
+  topPayers:{name:string; amount:number}[];
+  paymentMethods:{method:PaymentMethod; count:number; total:number}[]
+}
+
+export interface ReportConfig{
+  type:ReportType
+  format:ReportFormat;
+  dateRange:{start:string; end:string};
+  filters:{
+    patientId?:string;
+    doctorId?:string;
+    status?:InvoiceStatus;
+    paymentMethod?:PaymentMethod;
+  };
+  includeCharts:boolean;
+  includeSummary:boolean;
+  includeDetails:boolean
 }
