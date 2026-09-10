@@ -19,7 +19,7 @@ const menus = [
   { title: 'Patient Portal', path: '/portal', icon: Users },
   { title: 'Analytics', path: '/analytics', icon: BarChart3 },
   { title: 'Settings', path: '/settings', icon: Settings },
-  //  { title: 'Doctor Dashboard', path: '/doctor-dashboard', icon: Stethoscope },
+  { title: 'Doctor Portal', path: '/doctor', icon: Stethoscope },
     { title: 'Staff Management', path: '/staff', icon: Users },
 ];
 

@@ -1,301 +1,122 @@
-
-
 import { useMemo, useState } from "react";
+import { SearchIcon } from "lucide-react";
+import type {
+  Appointment,
+  AppointmentFormValues,
+  SortColumn,
+  SortDirection,
+  WaitlistEntry,
+  WaitlistFormValues,
+} from "../types/appointment";
+import { doctors, emptyForm, statusOptions, typeOptions } from "../constants/appointment";
+import StatCard from "../components/StatCard";
+import { Modal } from "../components/Modal";
+import { FormSelect } from "../components/FormSelect";
+import { FormInput } from "../components/FormInput";
+import { StatusBadge, StatusMenu } from "../components/StatusMenu";
+import { ActionsMenu } from "../components/ActionMenu";
+import { AnalyticsPanel } from "../components/AnalyticsPanel";
+import { WaitlistPanel } from "../components/WaitListPanel";
+import { ToastStack, useToasts } from "../components/Toast";
+import { getAvatarStyle, getInitials } from "../utils/appointment";
+import { addDays, formatDate, isPastDateTime } from "../utils/date";
+import { exportAppointmentsToCsv } from "../utils/csv";
+import { useLocalStorage } from "../hooks/useStorage";
 
-type AppointmentStatus =
-  | "Scheduled"
-  | "Confirmed"
-  | "Checked-In"
-  | "In Progress"
-  | "Completed"
-  | "Cancelled"
-  | "No-Show";
+const TODAY = "2026-08-09";
+const PAGE_SIZE = 6;
 
-type AppointmentType =
-  | "Consultation"
-  | "Follow-up"
-  | "Diagnostic"
-  | "Procedure"
-  | "Other";
-
-type Appointment = {
-  id: string;
-  patientId: string;
-  patientName: string;
-  patientPhone: string;
-  doctorName: string;
-  specialty: string;
-  date: string;
-  time: string;
-  duration: number;
-  type: AppointmentType;
-  status: AppointmentStatus;
-  reason: string;
-  notes: string;
-};
-
-const initialAppointments: Appointment[] = [
-  {
-    id: "APT-1001",
-    patientId: "PAT-001",
-    patientName: "John Smith",
-    patientPhone: "(703) 555-1001",
-    doctorName: "Dr. Sarah Johnson",
-    specialty: "Radiology",
-    date: "2026-08-09",
-    time: "08:30",
-    duration: 30,
-    type: "Consultation",
-    status: "Confirmed",
-    reason: "Initial consultation",
-    notes: "Patient requested morning appointment.",
-  },
-  {
-    id: "APT-1002",
-    patientId: "PAT-002",
-    patientName: "Emily Davis",
-    patientPhone: "(703) 555-1002",
-    doctorName: "Dr. Michael Brown",
-    specialty: "Cardiology",
-    date: "2026-08-09",
-    time: "09:00",
-    duration: 30,
-    type: "Follow-up",
-    status: "Checked-In",
-    reason: "Follow-up consultation",
-    notes: "Review previous report.",
-  },
-  {
-    id: "APT-1003",
-    patientId: "PAT-003",
-    patientName: "Robert Wilson",
-    patientPhone: "(703) 555-1003",
-    doctorName: "Dr. Sarah Johnson",
-    specialty: "Radiology",
-    date: "2026-08-09",
-    time: "09:30",
-    duration: 45,
-    type: "Diagnostic",
-    status: "Scheduled",
-    reason: "Diagnostic imaging",
-    notes: "",
-  },
-  {
-    id: "APT-1004",
-    patientId: "PAT-004",
-    patientName: "Jessica Miller",
-    patientPhone: "(703) 555-1004",
-    doctorName: "Dr. David Lee",
-    specialty: "Neurology",
-    date: "2026-08-09",
-    time: "10:00",
-    duration: 30,
-    type: "Consultation",
-    status: "Completed",
-    reason: "Neurology consultation",
-    notes: "Consultation completed.",
-  },
-  {
-    id: "APT-1005",
-    patientId: "PAT-005",
-    patientName: "Daniel Anderson",
-    patientPhone: "(703) 555-1005",
-    doctorName: "Dr. Michael Brown",
-    specialty: "Cardiology",
-    date: "2026-08-09",
-    time: "10:30",
-    duration: 30,
-    type: "Follow-up",
-    status: "Cancelled",
-    reason: "Follow-up visit",
-    notes: "Patient requested cancellation.",
-  },
-  {
-    id: "APT-1006",
-    patientId: "PAT-006",
-    patientName: "Sophia Martinez",
-    patientPhone: "(703) 555-1006",
-    doctorName: "Dr. Sarah Johnson",
-    specialty: "Radiology",
-    date: "2026-08-10",
-    time: "08:00",
-    duration: 30,
-    type: "Consultation",
-    status: "Confirmed",
-    reason: "Consultation",
-    notes: "",
-  },
-  {
-    id: "APT-1007",
-    patientId: "PAT-007",
-    patientName: "James Taylor",
-    patientPhone: "(703) 555-1007",
-    doctorName: "Dr. David Lee",
-    specialty: "Neurology",
-    date: "2026-08-10",
-    time: "09:30",
-    duration: 30,
-    type: "Diagnostic",
-    status: "No-Show",
-    reason: "Diagnostic appointment",
-    notes: "Patient did not arrive.",
-  },
-  {
-    id: "APT-1008",
-    patientId: "PAT-008",
-    patientName: "Olivia Thomas",
-    patientPhone: "(703) 555-1008",
-    doctorName: "Dr. Michael Brown",
-    specialty: "Cardiology",
-    date: "2026-08-11",
-    time: "11:00",
-    duration: 30,
-    type: "Procedure",
-    status: "Scheduled",
-    reason: "Scheduled procedure",
-    notes: "",
-  },
-];
-
-const statusOptions: AppointmentStatus[] = [
-  "Scheduled",
-  "Confirmed",
-  "Checked-In",
-  "In Progress",
-  "Completed",
-  "Cancelled",
-  "No-Show",
-];
-
-const typeOptions: AppointmentType[] = [
-  "Consultation",
-  "Follow-up",
-  "Diagnostic",
-  "Procedure",
-  "Other",
-];
-
-const doctors = [
-  "Dr. Sarah Johnson",
-  "Dr. Michael Brown",
-  "Dr. David Lee",
-];
-
-const emptyForm = {
-  patientName: "",
-  patientId: "",
-  patientPhone: "",
-  doctorName: doctors[0],
-  specialty: "Radiology",
-  date: "2026-08-09",
-  time: "09:00",
-  duration: "30",
-  type: "Consultation" as AppointmentType,
-  status: "Scheduled" as AppointmentStatus,
-  reason: "",
-  notes: "",
-};
-
-function formatDate(date: string) {
-  return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+function generateId(prefix: string) {
+  return `${prefix}-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 }
 
-function formatTime(time: string) {
-  const [hours, minutes] = time.split(":").map(Number);
-  const date = new Date();
-  date.setHours(hours, minutes, 0, 0);
-
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+function validateForm(values: AppointmentFormValues) {
+  const errors: Partial<Record<keyof AppointmentFormValues, string>> = {};
+  if (!values.patientName.trim()) errors.patientName = "Patient name is required";
+  if (!values.patientId.trim()) errors.patientId = "Patient ID is required";
+  if (!values.patientPhone.trim()) errors.patientPhone = "Phone number is required";
+  if (!values.date) errors.date = "Date is required";
+  if (!values.time) errors.time = "Time is required";
+  return errors;
 }
 
-function statusClasses(status: AppointmentStatus) {
-  switch (status) {
-    case "Confirmed":
-      return "bg-blue-50 text-blue-700 ring-blue-200";
-    case "Scheduled":
-      return "bg-slate-50 text-slate-700 ring-slate-200";
-    case "Checked-In":
-      return "bg-amber-50 text-amber-700 ring-amber-200";
-    case "In Progress":
-      return "bg-violet-50 text-violet-700 ring-violet-200";
-    case "Completed":
-      return "bg-emerald-50 text-emerald-700 ring-emerald-200";
-    case "Cancelled":
-      return "bg-red-50 text-red-700 ring-red-200";
-    case "No-Show":
-      return "bg-orange-50 text-orange-700 ring-orange-200";
-    default:
-      return "bg-slate-50 text-slate-700 ring-slate-200";
-  }
-}
-
-function StatusBadge({ status }: { status: AppointmentStatus }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${statusClasses(
-        status,
-      )}`}
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {status}
-    </span>
-  );
+function validateWaitlistForm(values: WaitlistFormValues) {
+  const errors: Partial<Record<keyof WaitlistFormValues, string>> = {};
+  if (!values.patientName.trim()) errors.patientName = "Patient name is required";
+  if (!values.patientPhone.trim()) errors.patientPhone = "Phone number is required";
+  if (!values.preferredDate) errors.preferredDate = "Preferred date is required";
+  return errors;
 }
 
 export default function AppointmentPage() {
-  const [appointments, setAppointments] =
-    useState<Appointment[]>(initialAppointments);
+  // Persisted state — survives a page refresh via localStorage.
+  const [appointments, setAppointments] = useLocalStorage<Appointment[]>("clinic:appointments", []);
+  const [waitlist, setWaitlist] = useLocalStorage<WaitlistEntry[]>("clinic:waitlist", []);
 
+  const { toasts, showToast, dismiss } = useToasts();
+
+  // Filters
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
   const [doctorFilter, setDoctorFilter] = useState("All");
   const [dateFilter, setDateFilter] = useState("");
 
+  // Sorting
+  const [sortColumn, setSortColumn] = useState<SortColumn>("date");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  // Bulk selection (desktop table only)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Modals
   const [showForm, setShowForm] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
+  const [showWaitlistForm, setShowWaitlistForm] = useState(false);
+  const [bulkCancelMode, setBulkCancelMode] = useState(false);
 
-  const [selectedAppointment, setSelectedAppointment] =
-    useState<Appointment | null>(null);
-
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<AppointmentFormValues>(emptyForm);
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof AppointmentFormValues, string>>>({});
+  const [cancelReason, setCancelReason] = useState("Patient requested cancellation");
 
-  const [cancelReason, setCancelReason] = useState(
-    "Patient requested cancellation",
-  );
+  const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [occurrences, setOccurrences] = useState(4);
+  const [attachmentDraft, setAttachmentDraft] = useState("");
+
+  const [waitlistForm, setWaitlistForm] = useState<WaitlistFormValues>({
+    patientName: "",
+    patientPhone: "",
+    doctorName: doctors[0],
+    preferredDate: "",
+    notes: "",
+  });
+  const [waitlistErrors, setWaitlistErrors] = useState<
+    Partial<Record<keyof WaitlistFormValues, string>>
+  >({});
 
   const [page, setPage] = useState(1);
-  const pageSize = 6;
 
-  const today = "2026-08-09";
+  // ---------- Derived data ----------
 
   const stats = useMemo(() => {
     return {
       total: appointments.length,
-      today: appointments.filter((a) => a.date === today).length,
+      today: appointments.filter((a) => a.date === TODAY).length,
       scheduled: appointments.filter((a) => a.status === "Scheduled").length,
       confirmed: appointments.filter((a) => a.status === "Confirmed").length,
       checkedIn: appointments.filter((a) => a.status === "Checked-In").length,
       completed: appointments.filter((a) => a.status === "Completed").length,
-      cancelled: appointments.filter((a) => a.status === "Cancelled").length,
-      noShow: appointments.filter((a) => a.status === "No-Show").length,
     };
   }, [appointments]);
 
   const filteredAppointments = useMemo(() => {
     const query = search.toLowerCase().trim();
 
-    return appointments.filter((appointment) => {
+    const filtered = appointments.filter((appointment) => {
       const matchesSearch =
         !query ||
         appointment.id.toLowerCase().includes(query) ||
@@ -304,205 +125,50 @@ export default function AppointmentPage() {
         appointment.patientPhone.toLowerCase().includes(query) ||
         appointment.doctorName.toLowerCase().includes(query);
 
-      const matchesStatus =
-        statusFilter === "All" || appointment.status === statusFilter;
+      const matchesStatus = statusFilter === "All" || appointment.status === statusFilter;
+      const matchesType = typeFilter === "All" || appointment.type === typeFilter;
+      const matchesDoctor = doctorFilter === "All" || appointment.doctorName === doctorFilter;
+      const matchesDate = !dateFilter || appointment.date === dateFilter;
 
-      const matchesType =
-        typeFilter === "All" || appointment.type === typeFilter;
-
-      const matchesDoctor =
-        doctorFilter === "All" || appointment.doctorName === doctorFilter;
-
-      const matchesDate =
-        !dateFilter || appointment.date === dateFilter;
-
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesType &&
-        matchesDoctor &&
-        matchesDate
-      );
+      return matchesSearch && matchesStatus && matchesType && matchesDoctor && matchesDate;
     });
-  }, [
-    appointments,
-    search,
-    statusFilter,
-    typeFilter,
-    doctorFilter,
-    dateFilter,
-  ]);
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredAppointments.length / pageSize),
-  );
+    const sorted = [...filtered].sort((a, b) => {
+      let compare = 0;
+      if (sortColumn === "date") {
+        compare = `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`);
+      } else {
+        compare = a[sortColumn].localeCompare(b[sortColumn]);
+      }
+      return sortDirection === "asc" ? compare : -compare;
+    });
 
+    return sorted;
+  }, [appointments, search, statusFilter, typeFilter, doctorFilter, dateFilter, sortColumn, sortDirection]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
   const paginatedAppointments = filteredAppointments.slice(
-    (page - 1) * pageSize,
-    page * pageSize,
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
   );
 
-  function openCreateForm() {
-    setEditingId(null);
-    setForm(emptyForm);
-    setShowForm(true);
-  }
+  const hasActiveFilters =
+    search !== "" ||
+    statusFilter !== "All" ||
+    typeFilter !== "All" ||
+    doctorFilter !== "All" ||
+    dateFilter !== "";
 
-  function openEditForm(appointment: Appointment) {
-    setEditingId(appointment.id);
+  const overdueCount = useMemo(
+    () =>
+      appointments.filter(
+        (a) => (a.status === "Scheduled" || a.status === "Confirmed") && isPastDateTime(a.date, a.time)
+      ).length,
+    [appointments]
+  );
 
-    setForm({
-      patientName: appointment.patientName,
-      patientId: appointment.patientId,
-      patientPhone: appointment.patientPhone,
-      doctorName: appointment.doctorName,
-      specialty: appointment.specialty,
-      date: appointment.date,
-      time: appointment.time,
-      duration: String(appointment.duration),
-      type: appointment.type,
-      status: appointment.status,
-      reason: appointment.reason,
-      notes: appointment.notes,
-    });
-
-    setShowForm(true);
-  }
-
-  function handleFormChange(
-    field: keyof typeof form,
-    value: string,
-  ) {
-    setForm((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
-  }
-
-  function saveAppointment() {
-    if (!form.patientName.trim() || !form.patientId.trim()) {
-      alert("Please enter patient name and patient ID.");
-      return;
-    }
-
-    if (!form.date || !form.time) {
-      alert("Please select appointment date and time.");
-      return;
-    }
-
-    if (editingId) {
-      setAppointments((previous) =>
-        previous.map((appointment) =>
-          appointment.id === editingId
-            ? {
-                ...appointment,
-                patientName: form.patientName,
-                patientId: form.patientId,
-                patientPhone: form.patientPhone,
-                doctorName: form.doctorName,
-                specialty: form.specialty,
-                date: form.date,
-                time: form.time,
-                duration: Number(form.duration),
-                type: form.type,
-                status: form.status,
-                reason: form.reason,
-                notes: form.notes,
-              }
-            : appointment,
-        ),
-      );
-    } else {
-      const newAppointment: Appointment = {
-        id: `APT-${1000 + appointments.length + 1}`,
-        patientName: form.patientName,
-        patientId: form.patientId,
-        patientPhone: form.patientPhone,
-        doctorName: form.doctorName,
-        specialty: form.specialty,
-        date: form.date,
-        time: form.time,
-        duration: Number(form.duration),
-        type: form.type,
-        status: form.status,
-        reason: form.reason,
-        notes: form.notes,
-      };
-
-      setAppointments((previous) => [newAppointment, ...previous]);
-    }
-
-    setShowForm(false);
-    setEditingId(null);
-    setForm(emptyForm);
-  }
-
-  function updateStatus(
-    appointmentId: string,
-    status: AppointmentStatus,
-  ) {
-    setAppointments((previous) =>
-      previous.map((appointment) =>
-        appointment.id === appointmentId
-          ? { ...appointment, status }
-          : appointment,
-      ),
-    );
-
-    setSelectedAppointment((previous) =>
-      previous && previous.id === appointmentId
-        ? { ...previous, status }
-        : previous,
-    );
-  }
-
-  function handleCheckIn(appointment: Appointment) {
-    updateStatus(appointment.id, "Checked-In");
-  }
-
-  function handleComplete(appointment: Appointment) {
-    updateStatus(appointment.id, "Completed");
-  }
-
-  function openCancelModal(appointment: Appointment) {
-    setSelectedAppointment(appointment);
-    setCancelReason("Patient requested cancellation");
-    setShowCancel(true);
-  }
-
-  function cancelAppointment() {
-    if (!selectedAppointment) return;
-
-    setAppointments((previous) =>
-      previous.map((appointment) =>
-        appointment.id === selectedAppointment.id
-          ? {
-              ...appointment,
-              status: "Cancelled",
-              notes: `${appointment.notes}${
-                appointment.notes ? " " : ""
-              }Cancellation reason: ${cancelReason}`,
-            }
-          : appointment,
-      ),
-    );
-
-    setShowCancel(false);
-    setSelectedAppointment(null);
-  }
-
-  function deleteAppointment(appointmentId: string) {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this appointment?",
-    );
-
-    if (!confirmed) return;
-
-    setAppointments((previous) =>
-      previous.filter((appointment) => appointment.id !== appointmentId),
-    );
-  }
+  // ---------- Filter & sort handlers ----------
 
   function clearFilters() {
     setSearch("");
@@ -512,6 +178,301 @@ export default function AppointmentPage() {
     setDateFilter("");
     setPage(1);
   }
+
+  function toggleSort(column: SortColumn) {
+    if (sortColumn === column) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  }
+
+  function sortIndicator(column: SortColumn) {
+    if (sortColumn !== column) return null;
+    return <span className="ml-1 text-slate-400">{sortDirection === "asc" ? "▲" : "▼"}</span>;
+  }
+
+  // ---------- Selection / bulk actions ----------
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllOnPage() {
+    const pageIds = paginatedAppointments.map((a) => a.id);
+    const allSelected = pageIds.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      pageIds.forEach((id) => (allSelected ? next.delete(id) : next.add(id)));
+      return next;
+    });
+  }
+
+  function bulkCancel() {
+    const targetIds = new Set(selectedIds);
+    const previousStatuses = appointments
+      .filter((a) => targetIds.has(a.id))
+      .map((a) => ({ id: a.id, status: a.status }));
+
+    setAppointments((prev) =>
+      prev.map((a) =>
+        targetIds.has(a.id) && a.status !== "Cancelled"
+          ? { ...a, status: "Cancelled", cancelReason: "Cancelled via bulk action" }
+          : a
+      )
+    );
+    setSelectedIds(new Set());
+    setBulkCancelMode(false);
+
+    showToast(`Cancelled ${targetIds.size} appointment${targetIds.size === 1 ? "" : "s"}`, "danger", () => {
+      setAppointments((prev) =>
+        prev.map((a) => {
+          const original = previousStatuses.find((p) => p.id === a.id);
+          return original ? { ...a, status: original.status, cancelReason: undefined } : a;
+        })
+      );
+    });
+  }
+
+  // ---------- No-show detection ----------
+
+  function flagOverdueAsNoShow() {
+    let flagged = 0;
+    setAppointments((prev) =>
+      prev.map((a) => {
+        if ((a.status === "Scheduled" || a.status === "Confirmed") && isPastDateTime(a.date, a.time)) {
+          flagged += 1;
+          return { ...a, status: "No-Show" };
+        }
+        return a;
+      })
+    );
+    if (flagged > 0) {
+      showToast(`Marked ${flagged} overdue appointment${flagged === 1 ? "" : "s"} as No-Show`, "info");
+    }
+  }
+
+  // ---------- CSV export ----------
+
+  function handleExportCsv() {
+    exportAppointmentsToCsv(filteredAppointments, "appointments.csv");
+    showToast(`Exported ${filteredAppointments.length} appointment${filteredAppointments.length === 1 ? "" : "s"} to CSV`, "success");
+  }
+
+  // ---------- Form (create / edit) handlers ----------
+
+  function openCreateForm(prefill?: Partial<AppointmentFormValues>) {
+    setEditingId(null);
+    setForm({ ...emptyForm, ...prefill });
+    setFormErrors({});
+    setRepeatWeekly(false);
+    setOccurrences(4);
+    setAttachmentDraft("");
+    setShowForm(true);
+  }
+
+  function openEditForm(appointment: Appointment) {
+    setEditingId(appointment.id);
+    setForm({
+      patientName: appointment.patientName,
+      patientId: appointment.patientId,
+      patientPhone: appointment.patientPhone,
+      doctorName: appointment.doctorName,
+      date: appointment.date,
+      time: appointment.time,
+      type: appointment.type,
+      status: appointment.status,
+      notes: appointment.notes ?? "",
+      attachments: appointment.attachments ?? [],
+    });
+    setFormErrors({});
+    setRepeatWeekly(false);
+    setAttachmentDraft("");
+    setShowForm(true);
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
+    setForm(emptyForm);
+    setFormErrors({});
+  }
+
+  function handleFormChange<K extends keyof AppointmentFormValues>(
+    field: K,
+    value: AppointmentFormValues[K]
+  ) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+  }
+
+  function addAttachment() {
+    const name = attachmentDraft.trim();
+    if (!name) return;
+    handleFormChange("attachments", [...form.attachments, name]);
+    setAttachmentDraft("");
+  }
+
+  function removeAttachment(index: number) {
+    handleFormChange(
+      "attachments",
+      form.attachments.filter((_, i) => i !== index)
+    );
+  }
+
+  function saveAppointment() {
+    const errors = validateForm(form);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    if (editingId) {
+      setAppointments((prev) =>
+        prev.map((appointment) =>
+          appointment.id === editingId ? { ...appointment, ...form } : appointment
+        )
+      );
+      showToast("Appointment updated", "success");
+    } else if (repeatWeekly && occurrences > 1) {
+      const newAppointments: Appointment[] = Array.from({ length: occurrences }, (_, i) => ({
+        ...form,
+        id: generateId("APT"),
+        date: addDays(form.date, i * 7),
+        createdAt: new Date().toISOString(),
+      }));
+      setAppointments((prev) => [...newAppointments, ...prev]);
+      showToast(`Created ${occurrences} recurring appointments`, "success");
+    } else {
+      const newAppointment: Appointment = {
+        ...form,
+        id: generateId("APT"),
+        createdAt: new Date().toISOString(),
+      };
+      setAppointments((prev) => [newAppointment, ...prev]);
+      showToast("Appointment created", "success");
+    }
+
+    closeForm();
+  }
+
+  // ---------- Details modal ----------
+
+  function openDetails(appointment: Appointment) {
+    setSelectedAppointment(appointment);
+    setShowDetails(true);
+  }
+
+  function closeDetails() {
+    setShowDetails(false);
+    setSelectedAppointment(null);
+  }
+
+  const patientHistory = useMemo(() => {
+    if (!selectedAppointment) return [];
+    return appointments
+      .filter((a) => a.patientId === selectedAppointment.patientId && a.id !== selectedAppointment.id)
+      .sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`));
+  }, [appointments, selectedAppointment]);
+
+  // ---------- Cancel modal ----------
+
+  function openCancel(appointment: Appointment) {
+    setSelectedAppointment(appointment);
+    setCancelReason("Patient requested cancellation");
+    setShowCancel(true);
+  }
+
+  function closeCancel() {
+    setShowCancel(false);
+    setSelectedAppointment(null);
+  }
+
+  function confirmCancel() {
+    if (!selectedAppointment) return;
+    const previousStatus = selectedAppointment.status;
+    setAppointments((prev) =>
+      prev.map((appointment) =>
+        appointment.id === selectedAppointment.id
+          ? { ...appointment, status: "Cancelled", cancelReason }
+          : appointment
+      )
+    );
+    closeCancel();
+    showToast("Appointment cancelled", "danger", () => {
+      setAppointments((prev) =>
+        prev.map((a) =>
+          a.id === selectedAppointment.id ? { ...a, status: previousStatus, cancelReason: undefined } : a
+        )
+      );
+    });
+  }
+
+  // ---------- Inline status change ----------
+
+  function handleStatusChange(appointment: Appointment, nextStatus: Appointment["status"]) {
+    if (nextStatus === "Cancelled") {
+      openCancel(appointment);
+      return;
+    }
+    setAppointments((prev) =>
+      prev.map((item) => (item.id === appointment.id ? { ...item, status: nextStatus } : item))
+    );
+    showToast(`Marked as ${nextStatus}`, "success");
+  }
+
+  // ---------- Waitlist ----------
+
+  function openWaitlistForm() {
+    setWaitlistForm({
+      patientName: "",
+      patientPhone: "",
+      doctorName: doctors[0],
+      preferredDate: "",
+      notes: "",
+    });
+    setWaitlistErrors({});
+    setShowWaitlistForm(true);
+  }
+
+  function saveWaitlistEntry() {
+    const errors = validateWaitlistForm(waitlistForm);
+    if (Object.keys(errors).length > 0) {
+      setWaitlistErrors(errors);
+      return;
+    }
+    const entry: WaitlistEntry = {
+      ...waitlistForm,
+      id: generateId("WL"),
+      createdAt: new Date().toISOString(),
+    };
+    setWaitlist((prev) => [entry, ...prev]);
+    setShowWaitlistForm(false);
+    showToast("Added to waitlist", "success");
+  }
+
+  function removeWaitlistEntry(id: string) {
+    setWaitlist((prev) => prev.filter((entry) => entry.id !== id));
+  }
+
+  function promoteWaitlistEntry(entry: WaitlistEntry) {
+    removeWaitlistEntry(entry.id);
+    openCreateForm({
+      patientName: entry.patientName,
+      patientPhone: entry.patientPhone,
+      doctorName: entry.doctorName,
+      date: entry.preferredDate,
+      notes: entry.notes,
+    });
+  }
+
+  // ---------- Render ----------
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -524,1028 +485,729 @@ export default function AppointmentPage() {
               <span className="text-slate-300">/</span>
               <span className="text-slate-500">Appointments</span>
             </div>
-
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
               Appointments
             </h1>
-
             <p className="mt-1 text-sm text-slate-500">
-              Manage patient appointments, schedules, check-ins, and
-              consultations.
+              Manage patient appointments, schedules, check-ins, and consultations.
             </p>
           </div>
-
-          <button
-            type="button"
-            onClick={openCreateForm}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-          >
-            <span className="text-lg">+</span>
-            New Appointment
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={filteredAppointments.length === 0}
+              className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => openCreateForm()}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              <span className="text-lg leading-none">+</span>
+              New Appointment
+            </button>
+          </div>
         </div>
+
+        {overdueCount > 0 && (
+          <div className="mb-6 flex flex-col items-start justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 sm:flex-row sm:items-center">
+            <p className="text-sm text-amber-800">
+              {overdueCount} appointment{overdueCount === 1 ? " is" : "s are"} past its scheduled time and still marked
+              Scheduled or Confirmed.
+            </p>
+            <button
+              type="button"
+              onClick={flagOverdueAsNoShow}
+              className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+            >
+              Mark as No-Show
+            </button>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <StatCard
-            title="Total"
-            value={stats.total}
-            icon="📅"
-          />
-
-          <StatCard
-            title="Today"
-            value={stats.today}
-            icon="🗓️"
-          />
-
-          <StatCard
-            title="Scheduled"
-            value={stats.scheduled}
-            icon="⏱️"
-          />
-
-          <StatCard
-            title="Confirmed"
-            value={stats.confirmed}
-            icon="✓"
-          />
-
-          <StatCard
-            title="Checked-In"
-            value={stats.checkedIn}
-            icon="👤"
-          />
-
-          <StatCard
-            title="Completed"
-            value={stats.completed}
-            icon="✓"
-          />
+          <StatCard title="Total" value={stats.total} icon="📅" />
+          <StatCard title="Today" value={stats.today} icon="🗓️" />
+          <StatCard title="Scheduled" value={stats.scheduled} icon="⏱️" />
+          <StatCard title="Confirmed" value={stats.confirmed} icon="✓" />
+          <StatCard title="Checked-In" value={stats.checkedIn} icon="👤" />
+          <StatCard title="Completed" value={stats.completed} icon="✓" />
         </div>
+
+        <AnalyticsPanel appointments={appointments} />
+
+        <WaitlistPanel
+          entries={waitlist}
+          onAdd={openWaitlistForm}
+          onPromote={promoteWaitlistEntry}
+          onRemove={removeWaitlistEntry}
+        />
 
         {/* Main Card */}
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          {/* Toolbar */}
+          {/* Filters */}
           <div className="border-b border-slate-200 p-4 sm:p-5">
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-3 lg:flex-row">
                 <div className="relative flex-1">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    🔍
+                    <SearchIcon size={18} />
                   </span>
-
                   <input
                     type="text"
                     value={search}
-                    onChange={(event) => {
-                      setSearch(event.target.value);
+                    onChange={(e) => {
+                      setSearch(e.target.value);
                       setPage(1);
                     }}
                     placeholder="Search patient, appointment, doctor, phone..."
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
-
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                  disabled={!hasActiveFilters}
+                  className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Clear Filters
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <select
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <FormSelect
+                  label="Status"
                   value={statusFilter}
-                  onChange={(event) => {
-                    setStatusFilter(event.target.value);
+                  options={["All", ...statusOptions]}
+                  onChange={(val) => {
+                    setStatusFilter(val);
                     setPage(1);
                   }}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="All">All Statuses</option>
-                  {statusOptions.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-
-                <select
+                />
+                <FormSelect
+                  label="Type"
                   value={typeFilter}
-                  onChange={(event) => {
-                    setTypeFilter(event.target.value);
+                  options={["All", ...typeOptions]}
+                  onChange={(val) => {
+                    setTypeFilter(val);
                     setPage(1);
                   }}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="All">All Types</option>
-                  {typeOptions.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-
-                <select
+                />
+                <FormSelect
+                  label="Doctor"
                   value={doctorFilter}
-                  onChange={(event) => {
-                    setDoctorFilter(event.target.value);
+                  options={["All", ...doctors]}
+                  onChange={(val) => {
+                    setDoctorFilter(val);
                     setPage(1);
                   }}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="All">All Doctors</option>
-                  {doctors.map((doctor) => (
-                    <option key={doctor} value={doctor}>
-                      {doctor}
-                    </option>
-                  ))}
-                </select>
-
-                <input
+                />
+                <FormInput
+                  label="Date"
                   type="date"
                   value={dateFilter}
-                  onChange={(event) => {
-                    setDateFilter(event.target.value);
+                  onChange={(val) => {
+                    setDateFilter(val);
                     setPage(1);
                   }}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
             </div>
           </div>
 
-          {/* Desktop Table */}
-          <div className="hidden overflow-x-auto lg:block">
-            <table className="w-full text-left">
-              <thead className="border-b border-slate-200 bg-slate-50">
-                <tr>
-                  <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Appointment
-                  </th>
-                  <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Patient
-                  </th>
-                  <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Doctor
-                  </th>
-                  <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Date & Time
-                  </th>
-                  <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Type
-                  </th>
-                  <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Status
-                  </th>
-                  <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
+          {/* Bulk actions bar */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center justify-between gap-3 border-b border-blue-100 bg-blue-50 px-5 py-3 text-sm">
+              <span className="font-medium text-blue-800">{selectedIds.size} selected</span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBulkCancelMode(true)}
+                  className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                >
+                  Cancel selected
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-xs font-medium text-blue-700 hover:text-blue-900"
+                >
+                  Clear selection
+                </button>
+              </div>
+            </div>
+          )}
 
-              <tbody className="divide-y divide-slate-100">
+          {/* Appointment list */}
+          {filteredAppointments.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
+              <span className="text-3xl">📭</span>
+              <p className="text-sm font-medium text-slate-700">
+                {appointments.length === 0
+                  ? "No appointments yet"
+                  : "No appointments match your filters"}
+              </p>
+              <p className="text-sm text-slate-400">
+                {appointments.length === 0
+                  ? "Create your first appointment to get started."
+                  : "Try adjusting or clearing your filters."}
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Desktop / tablet table */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
+                      <th className="w-10 px-5 py-3">
+                        <input
+                          type="checkbox"
+                          checked={
+                            paginatedAppointments.length > 0 &&
+                            paginatedAppointments.every((a) => selectedIds.has(a.id))
+                          }
+                          onChange={toggleSelectAllOnPage}
+                          aria-label="Select all on page"
+                        />
+                      </th>
+                      <th className="px-5 py-3 font-medium">
+                        <button type="button" onClick={() => toggleSort("patientName")} className="hover:text-slate-600">
+                          Patient{sortIndicator("patientName")}
+                        </button>
+                      </th>
+                      <th className="px-5 py-3 font-medium">
+                        <button type="button" onClick={() => toggleSort("doctorName")} className="hover:text-slate-600">
+                          Doctor{sortIndicator("doctorName")}
+                        </button>
+                      </th>
+                      <th className="px-5 py-3 font-medium">
+                        <button type="button" onClick={() => toggleSort("date")} className="hover:text-slate-600">
+                          Date &amp; Time{sortIndicator("date")}
+                        </button>
+                      </th>
+                      <th className="px-5 py-3 font-medium">Type</th>
+                      <th className="px-5 py-3 font-medium">Status</th>
+                      <th className="px-5 py-3 font-medium text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {paginatedAppointments.map((appointment) => (
+                      <tr key={appointment.id} className="transition hover:bg-slate-50">
+                        <td className="px-5 py-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(appointment.id)}
+                            onChange={() => toggleSelect(appointment.id)}
+                            aria-label={`Select ${appointment.patientName}`}
+                          />
+                        </td>
+                        <td className="px-5 py-4">
+                          <button
+                            type="button"
+                            onClick={() => openDetails(appointment)}
+                            className="flex items-center gap-3 text-left"
+                          >
+                            <span
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${getAvatarStyle(
+                                appointment.patientName
+                              )}`}
+                            >
+                              {getInitials(appointment.patientName)}
+                            </span>
+                            <span>
+                              <p className="font-medium text-slate-900 hover:text-blue-600">
+                                {appointment.patientName}
+                              </p>
+                              <p className="text-xs text-slate-400">{appointment.patientId}</p>
+                            </span>
+                          </button>
+                        </td>
+                        <td className="px-5 py-4 text-slate-600">{appointment.doctorName}</td>
+                        <td className="px-5 py-4 text-slate-600">
+                          {formatDate(appointment.date)}
+                          <span className="text-slate-400"> · {appointment.time}</span>
+                        </td>
+                        <td className="px-5 py-4 text-slate-600">{appointment.type}</td>
+                        <td className="px-5 py-4">
+                          <StatusMenu
+                            status={appointment.status}
+                            onChange={(next) => handleStatusChange(appointment, next)}
+                          />
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <ActionsMenu
+                            onView={() => openDetails(appointment)}
+                            onEdit={() => openEditForm(appointment)}
+                            onCancel={() => openCancel(appointment)}
+                            cancelDisabled={appointment.status === "Cancelled"}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile card list */}
+              <div className="divide-y divide-slate-100 md:hidden">
                 {paginatedAppointments.map((appointment) => (
-                  <tr
-                    key={appointment.id}
-                    className="transition hover:bg-slate-50"
-                  >
-                    <td className="px-5 py-4">
+                  <div key={appointment.id} className="flex flex-col gap-3 px-4 py-4">
+                    <div className="flex items-start justify-between gap-3">
                       <button
                         type="button"
-                        onClick={() => {
-                          setSelectedAppointment(appointment);
-                          setShowDetails(true);
-                        }}
-                        className="font-semibold text-blue-600 hover:text-blue-700"
+                        onClick={() => openDetails(appointment)}
+                        className="flex items-center gap-3 text-left"
                       >
-                        {appointment.id}
+                        <span
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${getAvatarStyle(
+                            appointment.patientName
+                          )}`}
+                        >
+                          {getInitials(appointment.patientName)}
+                        </span>
+                        <span>
+                          <p className="font-medium text-slate-900">{appointment.patientName}</p>
+                          <p className="text-xs text-slate-400">{appointment.patientId}</p>
+                        </span>
                       </button>
+                      <ActionsMenu
+                        onView={() => openDetails(appointment)}
+                        onEdit={() => openEditForm(appointment)}
+                        onCancel={() => openCancel(appointment)}
+                        cancelDisabled={appointment.status === "Cancelled"}
+                      />
+                    </div>
 
-                      <div className="mt-1 text-xs text-slate-400">
-                        {appointment.duration} minutes
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="font-semibold text-slate-800">
-                        {appointment.patientName}
-                      </div>
-
-                      <div className="text-xs text-slate-500">
-                        {appointment.patientId}
-                      </div>
-
-                      <div className="text-xs text-slate-400">
-                        {appointment.patientPhone}
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="font-medium text-slate-800">
-                        {appointment.doctorName}
-                      </div>
-
-                      <div className="text-xs text-slate-500">
-                        {appointment.specialty}
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="font-medium text-slate-800">
-                        {formatDate(appointment.date)}
-                      </div>
-
-                      <div className="text-sm text-slate-500">
-                        {formatTime(appointment.time)}
-                      </div>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <span className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-600">
-                        {appointment.type}
+                    <div className="grid grid-cols-2 gap-y-1.5 pl-12 text-xs text-slate-500">
+                      <span>{appointment.doctorName}</span>
+                      <span className="text-right">{appointment.type}</span>
+                      <span>
+                        {formatDate(appointment.date)} · {appointment.time}
                       </span>
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <StatusBadge status={appointment.status} />
-                    </td>
-
-                    <td className="px-5 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          title="View"
-                          onClick={() => {
-                            setSelectedAppointment(appointment);
-                            setShowDetails(true);
-                          }}
-                          className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                        >
-                          View
-                        </button>
-
-                        <button
-                          type="button"
-                          title="Edit"
-                          onClick={() => openEditForm(appointment)}
-                          className="rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100"
-                        >
-                          Edit
-                        </button>
-
-                        {appointment.status === "Confirmed" ||
-                        appointment.status === "Scheduled" ? (
-                          <button
-                            type="button"
-                            onClick={() => handleCheckIn(appointment)}
-                            className="rounded-lg bg-emerald-50 px-2.5 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
-                          >
-                            Check-in
-                          </button>
-                        ) : null}
-
-                        {appointment.status === "Checked-In" ||
-                        appointment.status === "In Progress" ? (
-                          <button
-                            type="button"
-                            onClick={() => handleComplete(appointment)}
-                            className="rounded-lg bg-emerald-50 px-2.5 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
-                          >
-                            Complete
-                          </button>
-                        ) : null}
-
-                        {appointment.status !== "Cancelled" &&
-                        appointment.status !== "Completed" &&
-                        appointment.status !== "No-Show" ? (
-                          <button
-                            type="button"
-                            onClick={() => openCancelModal(appointment)}
-                            className="rounded-lg bg-red-50 px-2.5 py-2 text-xs font-medium text-red-600 hover:bg-red-100"
-                          >
-                            Cancel
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
+                      <span className="flex justify-end">
+                        <StatusMenu
+                          status={appointment.status}
+                          onChange={(next) => handleStatusChange(appointment, next)}
+                        />
+                      </span>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
 
-            {paginatedAppointments.length === 0 && (
-              <EmptyState onCreate={openCreateForm} />
-            )}
-          </div>
-
-          {/* Mobile / Tablet Cards */}
-          <div className="divide-y divide-slate-100 lg:hidden">
-            {paginatedAppointments.map((appointment) => (
-              <div
-                key={appointment.id}
-                className="p-4 sm:p-5"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedAppointment(appointment);
-                        setShowDetails(true);
-                      }}
-                      className="font-bold text-blue-600"
-                    >
-                      {appointment.id}
-                    </button>
-
-                    <div className="mt-1 text-xs text-slate-400">
-                      {formatDate(appointment.date)} at{" "}
-                      {formatTime(appointment.time)}
-                    </div>
-                  </div>
-
-                  <StatusBadge status={appointment.status} />
-                </div>
-
-                <div className="mt-4 rounded-xl bg-slate-50 p-4">
-                  <div className="font-semibold text-slate-800">
-                    {appointment.patientName}
-                  </div>
-
-                  <div className="mt-1 text-sm text-slate-500">
-                    {appointment.patientId} · {appointment.patientPhone}
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <div className="text-xs text-slate-400">
-                        Doctor
-                      </div>
-                      <div className="font-medium text-slate-700">
-                        {appointment.doctorName}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-xs text-slate-400">
-                        Type
-                      </div>
-                      <div className="font-medium text-slate-700">
-                        {appointment.type}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-xs text-slate-400">
-                        Specialty
-                      </div>
-                      <div className="font-medium text-slate-700">
-                        {appointment.specialty}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-xs text-slate-400">
-                        Duration
-                      </div>
-                      <div className="font-medium text-slate-700">
-                        {appointment.duration} min
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
+              {/* Pagination */}
+              <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row">
+                <p className="text-xs text-slate-400">
+                  Showing {(currentPage - 1) * PAGE_SIZE + 1}
+                  {"–"}
+                  {Math.min(currentPage * PAGE_SIZE, filteredAppointments.length)} of{" "}
+                  {filteredAppointments.length}
+                </p>
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedAppointment(appointment);
-                      setShowDetails(true);
-                    }}
-                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    View
+                    Previous
                   </button>
-
+                  <span className="text-sm text-slate-500">
+                    Page {currentPage} of {totalPages}
+                  </span>
                   <button
                     type="button"
-                    onClick={() => openEditForm(appointment)}
-                    className="rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Edit
-                  </button>
-
-                  {(appointment.status === "Scheduled" ||
-                    appointment.status === "Confirmed") && (
-                    <button
-                      type="button"
-                      onClick={() => handleCheckIn(appointment)}
-                      className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700"
-                    >
-                      Check-in
-                    </button>
-                  )}
-
-                  {(appointment.status === "Checked-In" ||
-                    appointment.status === "In Progress") && (
-                    <button
-                      type="button"
-                      onClick={() => handleComplete(appointment)}
-                      className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700"
-                    >
-                      Complete
-                    </button>
-                  )}
-
-                  {appointment.status !== "Cancelled" &&
-                    appointment.status !== "Completed" &&
-                    appointment.status !== "No-Show" && (
-                      <button
-                        type="button"
-                        onClick={() => openCancelModal(appointment)}
-                        className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600"
-                      >
-                        Cancel
-                      </button>
-                    )}
-
-                  <button
-                    type="button"
-                    onClick={() => deleteAppointment(appointment.id)}
-                    className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600"
-                  >
-                    Delete
+                    Next
                   </button>
                 </div>
               </div>
-            ))}
-
-            {paginatedAppointments.length === 0 && (
-              <EmptyState onCreate={openCreateForm} />
-            )}
-          </div>
-
-          {/* Pagination */}
-          <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            <p className="text-sm text-slate-500">
-              Showing{" "}
-              <span className="font-semibold text-slate-700">
-                {filteredAppointments.length === 0
-                  ? 0
-                  : (page - 1) * pageSize + 1}
-              </span>{" "}
-              to{" "}
-              <span className="font-semibold text-slate-700">
-                {Math.min(page * pageSize, filteredAppointments.length)}
-              </span>{" "}
-              of{" "}
-              <span className="font-semibold text-slate-700">
-                {filteredAppointments.length}
-              </span>{" "}
-              appointments
-            </p>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={page === 1}
-                onClick={() => setPage((previous) => previous - 1)}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Previous
-              </button>
-
-              <span className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">
-                {page} / {totalPages}
-              </span>
-
-              <button
-                type="button"
-                disabled={page >= totalPages}
-                onClick={() => setPage((previous) => previous + 1)}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Create / Edit Modal */}
-      {showForm && (
-        <Modal
-          title={editingId ? "Edit Appointment" : "New Appointment"}
-          onClose={() => {
-            setShowForm(false);
-            setEditingId(null);
-          }}
-        >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormInput
-              label="Patient Name"
-              value={form.patientName}
-              onChange={(value) =>
-                handleFormChange("patientName", value)
-              }
-              placeholder="Enter patient name"
-            />
-
-            <FormInput
-              label="Patient ID"
-              value={form.patientId}
-              onChange={(value) =>
-                handleFormChange("patientId", value)
-              }
-              placeholder="PAT-001"
-            />
-
-            <FormInput
-              label="Phone Number"
-              value={form.patientPhone}
-              onChange={(value) =>
-                handleFormChange("patientPhone", value)
-              }
-              placeholder="(703) 555-0000"
-            />
-
-            <FormSelect
-              label="Doctor"
-              value={form.doctorName}
-              options={doctors}
-              onChange={(value) =>
-                handleFormChange("doctorName", value)
-              }
-            />
-
-            <FormInput
-              label="Specialty"
-              value={form.specialty}
-              onChange={(value) =>
-                handleFormChange("specialty", value)
-              }
-              placeholder="Radiology"
-            />
-
-            <FormSelect
-              label="Appointment Type"
-              value={form.type}
-              options={typeOptions}
-              onChange={(value) =>
-                handleFormChange(
-                  "type",
-                  value as AppointmentType,
-                )
-              }
-            />
-
-            <FormInput
-              label="Date"
-              type="date"
-              value={form.date}
-              onChange={(value) =>
-                handleFormChange("date", value)
-              }
-            />
-
-            <FormInput
-              label="Time"
-              type="time"
-              value={form.time}
-              onChange={(value) =>
-                handleFormChange("time", value)
-              }
-            />
-
-            <FormInput
-              label="Duration (minutes)"
-              type="number"
-              value={form.duration}
-              onChange={(value) =>
-                handleFormChange("duration", value)
-              }
-              placeholder="30"
-            />
-
-            <FormSelect
-              label="Status"
-              value={form.status}
-              options={statusOptions}
-              onChange={(value) =>
-                handleFormChange(
-                  "status",
-                  value as AppointmentStatus,
-                )
-              }
-            />
-
-            <div className="sm:col-span-2">
-              <FormInput
-                label="Reason for Visit"
-                value={form.reason}
-                onChange={(value) =>
-                  handleFormChange("reason", value)
-                }
-                placeholder="Reason for appointment"
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                Notes
-              </label>
-
-              <textarea
-                rows={4}
-                value={form.notes}
-                onChange={(event) =>
-                  handleFormChange("notes", event.target.value)
-                }
-                placeholder="Additional notes..."
-                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-          </div>
-
-          <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-5">
+      {/* Create / Edit modal */}
+      <Modal
+        open={showForm}
+        onClose={closeForm}
+        title={editingId ? "Edit Appointment" : "New Appointment"}
+        footer={
+          <>
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={closeForm}
               className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
               Cancel
             </button>
-
             <button
               type="button"
               onClick={saveAppointment}
-              className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+              className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
             >
-              {editingId ? "Update Appointment" : "Create Appointment"}
+              {editingId ? "Save Changes" : "Create Appointment"}
             </button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <FormInput
+              label="Patient Name"
+              value={form.patientName}
+              onChange={(val) => handleFormChange("patientName", val)}
+              placeholder="Jane Doe"
+              required
+              error={formErrors.patientName}
+            />
+            <FormInput
+              label="Patient ID"
+              value={form.patientId}
+              onChange={(val) => handleFormChange("patientId", val)}
+              placeholder="PT-00123"
+              required
+              error={formErrors.patientId}
+            />
           </div>
-        </Modal>
-      )}
 
-      {/* Details Modal */}
-      {showDetails && selectedAppointment && (
-        <Modal
-          title="Appointment Details"
-          onClose={() => {
-            setShowDetails(false);
-            setSelectedAppointment(null);
-          }}
-        >
-          <div className="mb-5 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-400">
-                Appointment Number
-              </p>
-              <p className="text-xl font-bold text-slate-900">
+          <FormInput
+            label="Phone Number"
+            value={form.patientPhone}
+            onChange={(val) => handleFormChange("patientPhone", val)}
+            placeholder="(555) 123-4567"
+            required
+            error={formErrors.patientPhone}
+          />
+
+          <FormSelect
+            label="Doctor"
+            value={form.doctorName}
+            options={doctors}
+            onChange={(val) => handleFormChange("doctorName", val)}
+          />
+
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <FormInput
+              label="Date"
+              type="date"
+              value={form.date}
+              onChange={(val) => handleFormChange("date", val)}
+              required
+              error={formErrors.date}
+            />
+            <FormInput
+              label="Time"
+              type="time"
+              value={form.time}
+              onChange={(val) => handleFormChange("time", val)}
+              required
+              error={formErrors.time}
+            />
+          </div>
+
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <FormSelect
+              label="Type"
+              value={form.type}
+              options={typeOptions}
+              onChange={(val) => handleFormChange("type", val as AppointmentFormValues["type"])}
+            />
+            <FormSelect
+              label="Status"
+              value={form.status}
+              options={statusOptions}
+              onChange={(val) => handleFormChange("status", val as AppointmentFormValues["status"])}
+            />
+          </div>
+
+          {!editingId && (
+            <div className="rounded-xl border border-slate-200 p-3">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={repeatWeekly}
+                  onChange={(e) => setRepeatWeekly(e.target.checked)}
+                />
+                Repeat weekly
+              </label>
+              {repeatWeekly && (
+                <div className="mt-3 flex items-center gap-2 text-sm">
+                  <span className="text-slate-500">Number of occurrences</span>
+                  <input
+                    type="number"
+                    min={2}
+                    max={26}
+                    value={occurrences}
+                    onChange={(e) => setOccurrences(Number(e.target.value))}
+                    className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium text-slate-700">Notes</span>
+            <textarea
+              value={form.notes}
+              onChange={(e) => handleFormChange("notes", e.target.value)}
+              placeholder="Reason for visit, special instructions, etc."
+              rows={3}
+              className="resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
+            />
+          </label>
+
+          <div>
+            <span className="text-sm font-medium text-slate-700">Attachments</span>
+            <p className="mb-2 text-xs text-slate-400">
+              File names only — hook this up to real file storage before relying on it in production.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={attachmentDraft}
+                onChange={(e) => setAttachmentDraft(e.target.value)}
+                placeholder="e.g. lab-results.pdf"
+                className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
+              />
+              <button
+                type="button"
+                onClick={addAttachment}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Add
+              </button>
+            </div>
+            {form.attachments.length > 0 && (
+              <ul className="mt-2 flex flex-col gap-1">
+                {form.attachments.map((name, index) => (
+                  <li key={`${name}-${index}`} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
+                    {name}
+                    <button type="button" onClick={() => removeAttachment(index)} className="text-slate-400 hover:text-rose-500">
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Details modal */}
+      <Modal open={showDetails} onClose={closeDetails} title="Appointment Details" size="sm">
+        {selectedAppointment && (
+          <div className="flex flex-col gap-4 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wide text-slate-400">
                 {selectedAppointment.id}
-              </p>
+              </span>
+              <StatusBadge status={selectedAppointment.status} />
             </div>
 
-            <StatusBadge status={selectedAppointment.status} />
-          </div>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+              <div>
+                <dt className="text-xs text-slate-400">Patient</dt>
+                <dd className="font-medium text-slate-900">{selectedAppointment.patientName}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-400">Patient ID</dt>
+                <dd className="font-medium text-slate-900">{selectedAppointment.patientId}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-400">Phone</dt>
+                <dd className="font-medium text-slate-900">{selectedAppointment.patientPhone}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-400">Doctor</dt>
+                <dd className="font-medium text-slate-900">{selectedAppointment.doctorName}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-400">Date</dt>
+                <dd className="font-medium text-slate-900">
+                  {formatDate(selectedAppointment.date)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-400">Time</dt>
+                <dd className="font-medium text-slate-900">{selectedAppointment.time}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-slate-400">Type</dt>
+                <dd className="font-medium text-slate-900">{selectedAppointment.type}</dd>
+              </div>
+            </dl>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <DetailItem
-              label="Patient"
-              value={selectedAppointment.patientName}
-            />
-
-            <DetailItem
-              label="Patient ID"
-              value={selectedAppointment.patientId}
-            />
-
-            <DetailItem
-              label="Phone"
-              value={selectedAppointment.patientPhone}
-            />
-
-            <DetailItem
-              label="Doctor"
-              value={selectedAppointment.doctorName}
-            />
-
-            <DetailItem
-              label="Specialty"
-              value={selectedAppointment.specialty}
-            />
-
-            <DetailItem
-              label="Appointment Type"
-              value={selectedAppointment.type}
-            />
-
-            <DetailItem
-              label="Date"
-              value={formatDate(selectedAppointment.date)}
-            />
-
-            <DetailItem
-              label="Time"
-              value={formatTime(selectedAppointment.time)}
-            />
-
-            <DetailItem
-              label="Duration"
-              value={`${selectedAppointment.duration} minutes`}
-            />
-
-            <DetailItem
-              label="Reason"
-              value={selectedAppointment.reason || "—"}
-            />
-          </div>
-
-          <div className="mt-5 rounded-xl bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Notes
-            </p>
-
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              {selectedAppointment.notes || "No notes available."}
-            </p>
-          </div>
-
-          <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-5">
-            {(selectedAppointment.status === "Scheduled" ||
-              selectedAppointment.status === "Confirmed") && (
-              <button
-                type="button"
-                onClick={() => {
-                  handleCheckIn(selectedAppointment);
-                }}
-                className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
-              >
-                Check-in
-              </button>
+            {selectedAppointment.notes && (
+              <div>
+                <dt className="text-xs text-slate-400">Notes</dt>
+                <dd className="mt-1 text-slate-700">{selectedAppointment.notes}</dd>
+              </div>
             )}
 
-            {(selectedAppointment.status === "Checked-In" ||
-              selectedAppointment.status === "In Progress") && (
-              <button
-                type="button"
-                onClick={() => {
-                  handleComplete(selectedAppointment);
-                }}
-                className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
-              >
-                Complete
-              </button>
+            {selectedAppointment.attachments.length > 0 && (
+              <div>
+                <dt className="text-xs text-slate-400">Attachments</dt>
+                <dd className="mt-1 flex flex-col gap-1">
+                  {selectedAppointment.attachments.map((name) => (
+                    <span key={name} className="text-slate-700">
+                      📎 {name}
+                    </span>
+                  ))}
+                </dd>
+              </div>
             )}
 
+            {selectedAppointment.cancelReason && (
+              <div className="rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-600">
+                Cancelled — {selectedAppointment.cancelReason}
+              </div>
+            )}
+
+            {patientHistory.length > 0 && (
+              <div>
+                <dt className="mb-1 text-xs text-slate-400">Other appointments for this patient</dt>
+                <dd className="flex flex-col gap-1.5">
+                  {patientHistory.map((h) => (
+                    <div key={h.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-xs">
+                      <span className="text-slate-600">
+                        {formatDate(h.date)} · {h.type}
+                      </span>
+                      <StatusBadge status={h.status} />
+                    </div>
+                  ))}
+                </dd>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Cancel confirmation modal (used for single and bulk cancel) */}
+      <Modal
+        open={showCancel || bulkCancelMode}
+        onClose={() => {
+          closeCancel();
+          setBulkCancelMode(false);
+        }}
+        title={bulkCancelMode ? `Cancel ${selectedIds.size} Appointments` : "Cancel Appointment"}
+        size="sm"
+        footer={
+          <>
             <button
               type="button"
               onClick={() => {
-                setShowDetails(false);
-                openEditForm(selectedAppointment);
+                closeCancel();
+                setBulkCancelMode(false);
               }}
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Keep Appointment{bulkCancelMode ? "s" : ""}
+            </button>
+            <button
+              type="button"
+              onClick={bulkCancelMode ? bulkCancel : confirmCancel}
+              className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700"
+            >
+              Confirm Cancellation
+            </button>
+          </>
+        }
+      >
+        {bulkCancelMode ? (
+          <p className="text-sm text-slate-600">
+            You're about to cancel <span className="font-medium text-slate-900">{selectedIds.size}</span> selected
+            appointments. This can be undone from the toast right after.
+          </p>
+        ) : (
+          selectedAppointment && (
+            <div className="flex flex-col gap-4 text-sm">
+              <p className="text-slate-600">
+                You're about to cancel the appointment for{" "}
+                <span className="font-medium text-slate-900">{selectedAppointment.patientName}</span> on{" "}
+                {formatDate(selectedAppointment.date)} at {selectedAppointment.time}.
+              </p>
+              <label className="flex flex-col gap-1.5">
+                <span className="font-medium text-slate-700">Reason</span>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  rows={3}
+                  className="resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+            </div>
+          )
+        )}
+      </Modal>
+
+      {/* Waitlist add modal */}
+      <Modal
+        open={showWaitlistForm}
+        onClose={() => setShowWaitlistForm(false)}
+        title="Add to Waitlist"
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowWaitlistForm(false)}
+              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={saveWaitlistEntry}
               className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
             >
-              Edit
+              Add to Waitlist
             </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Cancel Modal */}
-      {showCancel && selectedAppointment && (
-        <Modal
-          title="Cancel Appointment"
-          onClose={() => {
-            setShowCancel(false);
-            setSelectedAppointment(null);
-          }}
-        >
-          <div className="rounded-xl bg-red-50 p-4">
-            <p className="text-sm font-medium text-red-800">
-              You are cancelling appointment{" "}
-              {selectedAppointment.id}.
-            </p>
-
-            <p className="mt-1 text-sm text-red-600">
-              {selectedAppointment.patientName} with{" "}
-              {selectedAppointment.doctorName}.
-            </p>
-          </div>
-
-          <div className="mt-5">
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">
-              Cancellation Reason
-            </label>
-
-            <select
-              value={cancelReason}
-              onChange={(event) =>
-                setCancelReason(event.target.value)
-              }
-              className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            >
-              <option>
-                Patient requested cancellation
-              </option>
-              <option>Doctor unavailable</option>
-              <option>Patient rescheduled</option>
-              <option>Clinic unavailable</option>
-              <option>Other</option>
-            </select>
-          </div>
-
-          <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-5">
-            <button
-              type="button"
-              onClick={() => setShowCancel(false)}
-              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600"
-            >
-              Keep Appointment
-            </button>
-
-            <button
-              type="button"
-              onClick={cancelAppointment}
-              className="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
-            >
-              Cancel Appointment
-            </button>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-function StatCard({
-  title,
-  value,
-  icon,
-}: {
-  title: string;
-  value: number;
-  icon: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <span className="text-xl">{icon}</span>
-
-        <span className="text-2xl font-bold text-slate-900">
-          {value}
-        </span>
-      </div>
-
-      <p className="mt-3 text-xs font-medium text-slate-500">
-        {title}
-      </p>
-    </div>
-  );
-}
-
-function FormInput({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  type?: string;
-}) {
-  return (
-    <div>
-      <label className="mb-1.5 block text-sm font-medium text-slate-700">
-        {label}
-      </label>
-
-      <input
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-      />
-    </div>
-  );
-}
-
-function FormSelect({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: string[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div>
-      <label className="mb-1.5 block text-sm font-medium text-slate-700">
-        {label}
-      </label>
-
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          </>
+        }
       >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-function DetailItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-      <p className="text-xs font-medium text-slate-400">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-slate-700">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function EmptyState({
-  onCreate,
-}: {
-  onCreate: () => void;
-}) {
-  return (
-    <div className="px-6 py-16 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-2xl">
-        📅
-      </div>
-
-      <h3 className="mt-4 text-lg font-semibold text-slate-900">
-        No appointments found
-      </h3>
-
-      <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-        There are no appointments matching your current
-        search and filters.
-      </p>
-
-      <button
-        type="button"
-        onClick={onCreate}
-        className="mt-5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-      >
-        Create Appointment
-      </button>
-    </div>
-  );
-}
-
-function Modal({
-  title,
-  children,
-  onClose,
-}: {
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
-          <h2 className="text-lg font-bold text-slate-900">
-            {title}
-          </h2>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-          >
-            ×
-          </button>
+        <div className="flex flex-col gap-4">
+          <FormInput
+            label="Patient Name"
+            value={waitlistForm.patientName}
+            onChange={(val) => setWaitlistForm((prev) => ({ ...prev, patientName: val }))}
+            required
+            error={waitlistErrors.patientName}
+          />
+          <FormInput
+            label="Phone Number"
+            value={waitlistForm.patientPhone}
+            onChange={(val) => setWaitlistForm((prev) => ({ ...prev, patientPhone: val }))}
+            required
+            error={waitlistErrors.patientPhone}
+          />
+          <FormSelect
+            label="Preferred Doctor"
+            value={waitlistForm.doctorName}
+            options={doctors}
+            onChange={(val) => setWaitlistForm((prev) => ({ ...prev, doctorName: val }))}
+          />
+          <FormInput
+            label="Preferred Date"
+            type="date"
+            value={waitlistForm.preferredDate}
+            onChange={(val) => setWaitlistForm((prev) => ({ ...prev, preferredDate: val }))}
+            required
+            error={waitlistErrors.preferredDate}
+          />
         </div>
+      </Modal>
 
-        <div className="p-5">{children}</div>
-      </div>
+      <ToastStack toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

@@ -10,7 +10,7 @@ import BillingPage from "../features/billing/page/BillingPage";
 // import DoctorDashboard from "../features/doctor-portal/page/DoctorDashboard";
 import StaffManagement from "../features/staff-management/pages/StaffManagement";
 import { patientRoutes } from "../features/patient-portal/route/routes";
-
+import { doctorRoutes } from "../features/doctor-portal/routes/route";
 
 
 
@@ -36,7 +36,10 @@ export default function AppRoutes(){
                 <Route path="/" element={<Navigate to="/portal" replace />} />
                 <Route path="*" element={<Navigate to="/portal" replace />} />
 
-                
+                 <Route path="/doctor/*" element={doctorRoutes} />
+
+                 {/* Catch-all redirect */}
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/staff" element={<StaffManagement/>}/>
             </Route>
             </Routes>
